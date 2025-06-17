@@ -2,61 +2,60 @@
 import streamlit as st
 import pandas as pd
 import os
+import zipfile
+import tempfile
 from dotenv import load_dotenv
 
-from agente import SafeDataAgent  # Certifique-se de que a classe esteja em agente.py
+from agente import SafeDataAgent
 
-# === Carrega a chave da API ===
+# === 🛡️ Carrega a chave da OpenAI ===
 load_dotenv()
 openai_key = os.getenv("OPENAI_API_KEY")
 
-# === Interface ===
-st.set_page_config(page_title="Consulta NFs", layout="centered")
-st.title("📊 Consulta Inteligente de Notas Fiscais")
-st.markdown("Faça perguntas sobre os dados de notas fiscais carregando os arquivos ou usando a pasta local.")
+st.set_page_config(page_title="Notas Fiscais IA", layout="centered")
+st.title("📦 Consulta Inteligente de Notas Fiscais via ZIP")
 
-# === Escolha do modo de carregamento ===
-modo = st.radio("Como deseja carregar os arquivos?", ["📁 Usar diretório atual", "📤 Fazer upload manual"])
+st.markdown("Faça o upload de um `.zip` contendo os arquivos `202401_NFs_Cabecalho.csv` e `202401_NFs_Itens.csv`.")
+
+# === Upload do ZIP ===
+zip_file = st.file_uploader("📁 Faça upload do arquivo .zip", type="zip")
 
 df_cabecalho = df_itens = None
 
-# === Opção 1: Usar arquivos locais no diretório atual ===
-if modo == "📁 Usar diretório atual":
-    pasta = os.getcwd()
-    st.write(f"🔍 Procurando arquivos em: `{pasta}`")
+if zip_file:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Salva o .zip temporariamente
+        zip_path = os.path.join(tmpdir, "upload.zip")
+        with open(zip_path, "wb") as f:
+            f.write(zip_file.getbuffer())
 
-    # Caminhos esperados
-    cab_path = os.path.join(pasta, "202401_NFs_Cabecalho.csv")
-    itens_path = os.path.join(pasta, "202401_NFs_Itens.csv")
+        # Extrai o conteúdo
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(tmpdir)
 
-    if os.path.exists(cab_path) and os.path.exists(itens_path):
-        df_cabecalho = pd.read_csv(cab_path)
-        df_itens = pd.read_csv(itens_path)
-        st.success("Arquivos encontrados e carregados com sucesso!")
-    else:
-        st.error("⚠️ Arquivos CSV não encontrados no diretório atual.")
+        # Tenta ler os arquivos extraídos
+        cab_path = os.path.join(tmpdir, "202401_NFs_Cabecalho.csv")
+        itens_path = os.path.join(tmpdir, "202401_NFs_Itens.csv")
 
-# === Opção 2: Upload manual ===
-else:
-    uploaded_cabecalho = st.file_uploader("📄 Upload do arquivo de Cabeçalho", type="csv")
-    uploaded_itens = st.file_uploader("📄 Upload do arquivo de Itens", type="csv")
+        if os.path.exists(cab_path) and os.path.exists(itens_path):
+            df_cabecalho = pd.read_csv(cab_path)
+            df_itens = pd.read_csv(itens_path)
+            st.success("✔️ Arquivos extraídos e lidos com sucesso!")
+        else:
+            st.error("❌ Arquivos CSV não encontrados no ZIP. Verifique os nomes dos arquivos.")
 
-    if uploaded_cabecalho and uploaded_itens:
-        df_cabecalho = pd.read_csv(uploaded_cabecalho)
-        df_itens = pd.read_csv(uploaded_itens)
-        st.success("Arquivos enviados e lidos com sucesso!")
-
-# === Inicializa agente e executa pergunta ===
+# === Cria o agente se os dados foram carregados ===
 if df_cabecalho is not None and df_itens is not None:
     try:
         agent = SafeDataAgent(openai_api_key=openai_key)
         agent.carregar_dataframes(df_cabecalho, df_itens)
 
-        pergunta = st.text_input("❓ Faça sua pergunta:", placeholder="Ex: Qual item teve maior volume entregue?")
+        pergunta = st.text_input("❓ Faça sua pergunta:", placeholder="Ex: Qual item teve o maior volume entregue?")
+
         if pergunta:
-            with st.spinner("Consultando..."):
+            with st.spinner("Consultando os dados..."):
                 resposta = agent.perguntar(pergunta)
-                st.success("🧠 Resposta do agente:")
+                st.success("🧠 Resposta:")
                 st.write(resposta)
     except Exception as e:
-        st.error(f"Erro ao processar os dados: {e}")
+        st.error(f"Erro ao inicializar agente: {e}")
