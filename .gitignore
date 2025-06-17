@@ -1,2 +1,6 @@
 # enviroments
 .env
+
+# folders
+__pycache__
+.ipynb_checkpoints
