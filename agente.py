@@ -6,7 +6,7 @@ class SafeDataAgent:
         self.llm = ChatOpenAI(
             temperature=0,
             openai_api_key=openai_api_key,
-            model="gpt-4"  # ou "gpt-3.5-turbo" se quiser reduzir custo
+            model="gpt-3.5-turbo"  
         )
         self.agent = None
 
