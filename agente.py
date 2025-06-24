@@ -1,12 +1,13 @@
-from langchain_openai import ChatOpenAI
+# agente.py
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_experimental.agents import create_pandas_dataframe_agent
 
 class SafeDataAgent:
-    def __init__(self, openai_api_key: str):
-        self.llm = ChatOpenAI(
-            temperature=0,
-            openai_api_key=openai_api_key,
-            model="gpt-3.5-turbo"  
+    def __init__(self, google_api_key: str):
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash",
+            google_api_key=google_api_key,
+            temperature=0
         )
         self.agent = None
 
@@ -26,4 +27,11 @@ class SafeDataAgent:
     def perguntar(self, pergunta: str):
         if not self.agent:
             raise Exception("Nenhum DataFrame carregado.")
-        return self.agent.run(pergunta)
+
+        # Adiciona uma instrução ao prompt para encorajar uma resposta mais detalhada
+        # ou com múltiplos pontos.
+        # Você pode ajustar esta instrução conforme a necessidade.
+        instrucao_adicional = "Responda sempre em português do Brasil, de forma objetiva. Forneça pelo menos 3 pontos ou aspectos relevantes, se aplicável à pergunta."
+        pergunta_completa = f"{pergunta} {instrucao_adicional}"
+
+        return self.agent.run(pergunta_completa) # Usa a pergunta_completa
